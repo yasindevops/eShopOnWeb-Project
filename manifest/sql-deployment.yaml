@@ -1,0 +1,39 @@
+# manifest/sql-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-server
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sql-server
+  template:
+    metadata:
+      labels:
+        app: sql-server
+    spec:
+      containers:
+        - name: sql-server
+          image: mcr.microsoft.com/azure-sql-edge
+          ports:
+            - containerPort: 1433
+          env:
+            - name: ACCEPT_EULA
+              value: "Y"
+            - name: MSSQL_SA_PASSWORD
+              value: "Password123!" # Gerçek projede bunu Secret ile yapmalıyız!
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sqlserver # Docker-compose'daki isimle aynı olması önemli
+  namespace: default
+spec:
+  selector:
+    app: sql-server
+  ports:
+    - protocol: TCP
+      port: 1433
+      targetPort: 1433

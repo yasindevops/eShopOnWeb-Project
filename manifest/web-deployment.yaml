@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eshop-web
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eshop-web
+  template:
+    metadata:
+      labels:
+        app: eshop-web
+    spec:
+      containers:
+        - name: eshop-web
+          # Jenkins bu imaji olusturup buraya itecek
+          image: git.local:3000/mehmet/eshoponweb:manual-mac
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "Development"
+
+            # -----------------------------------------------------------
+            # 1. KRİTİK AYAR (ÇÖKME ÖNLEYİCİ)
+            # Burası BOŞ kalmalı (""). "/" veya "http..." yazarsan kod patlar.
+            # Kod burası boşken varsayılan ayarları kullanır ve çökmez.
+            - name: CatalogBaseUrl
+              value: ""
+
+            # -----------------------------------------------------------
+            # 2. MICROSERVICE BAĞLANTISI (API ADRESİ)
+            # Admin paneli (Blazor) verileri buradan çekecek.
+            # Kubernetes içindeki servis ismini kullanıyoruz.
+            - name: baseUrls__apiBase
+              value: "http://eshoppublicapi/"
+
+            # -----------------------------------------------------------
+            # 3. WEB ADRESİ
+            # Uygulamanın kendi adresi.
+            - name: baseUrls__webBase
+              value: "http://192.168.2.78:30080/"
+
+            # -----------------------------------------------------------
+            # 4. SQL BAĞLANTILARI (Storefront İçin Zorunlu)
+            # Mağaza vitrini (ana sayfa) kod yapısı gereği burayı kullanır.
+            - name: ConnectionStrings__CatalogConnection
+              value: "Server=sqlserver;Database=Microsoft.eShopOnWeb.CatalogDb;User Id=sa;Password=Password123!;Encrypt=False;TrustServerCertificate=True;"
+            - name: ConnectionStrings__IdentityConnection
+              value: "Server=sqlserver;Database=Microsoft.eShopOnWeb.IdentityDb;User Id=sa;Password=Password123!;Encrypt=False;TrustServerCertificate=True;"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eshop-service
+  namespace: default
+spec:
+  type: NodePort
+  selector:
+    app: eshop-web
+  ports:
+    - port: 80
+      targetPort: 8080
+      # Tarayicidan ulasacagimiz port (192.168.2.78:30080)
+      nodePort: 30080

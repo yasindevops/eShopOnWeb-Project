@@ -312,3 +312,84 @@ git remote set-url --add --push origin http://192.168.2.81:3000/mehmet/eShopOnWe
 
 # GitHub'ı da listede tuttuğumuzdan emin olalım (Genelde otomatik kalır ama garantiye alalım)
 git remote set-url --add --push origin https://github.com/yasindevops/eShopOnWeb-Project.git
+
+
+```
+
+***
+
+# burada iplerin degisebilecegini dusunerek etc/host dosyasini guncelledim. multipass-hosts-sysnc.sh dosyasini kullanabilirsin
+
+***
+
+Gitea sadece kodları saklamakla kalmaz, aynı zamanda yerleşik bir Container Registry (Docker Image Deposu) özelliği de sunar. Böylece dışarıya (Docker Hub'a) çıkmadan, tamamen yerel ağında (192.168.2.x) imajlarını saklayıp dağıtabilirsin.
+
+Ancak Docker, güvenlik gereği yerel HTTP bağlantılarını (SSL sertifikası olmayan) engeller. Gitea'yı yerel depo olarak kullanmak için "Insecure Registry" (Güvenli Olmayan Kayıt Defteri) ayarını yapmamız şart.
+
+sudo nano /etc/gitea/app.ini
+
+[packages]
+ENABLED = true
+CHUNKED_UPLOAD_PATH = /var/lib/gitea/data/tmp/package-upload
+
+sudo systemctl restart gitea
+
+multipass shell jenkins-srv
+
+# 🐳 Docker Insecure Registry (HTTP) Yapılandırması jenkins-srv de yapilacak
+
+Yerel ağda (LAN) SSL sertifikası olmayan bir Gitea Container Registry kullanmak için Docker'ın "Insecure Registry" ayarının yapılması gerekir.
+
+## 1. Sorunun Tespiti
+
+Docker varsayılan olarak HTTPS bekler. HTTP üzerinden çalışan yerel bir registry'ye bağlanmaya çalışıldığında şu hata alınır:
+`server gave HTTP response to HTTPS client`
+
+## 2. Çözüm Adımları (Jenkins Sunucusu)
+
+Docker yapılandırma dosyasına Gitea sunucusunun adresi (hem IP hem Hostname olarak) eklenir.
+
+**Dosya:** `/etc/docker/daemon.json`
+**İçerik:**
+
+```json
+{
+  "insecure-registries" : ["git.local:3000", "192.168.2.81:3000"]
+}
+
+```
+
+sudo systemctl restart docker
+
+sudo usermod -aG docker $USER
+newgrp docker
+
+# 401 Unauthorized dönmesi servisin çalıştığını gösterir
+
+curl -v [http://git.local:3000/v2/](http://git.local:3000/v2/)
+
+docker login git.local:3000 -u <kullanici_adi>
+
+docker pull hello-world
+docker tag hello-world git.local:3000/mehmet/deneme-projesi:v1
+docker push git.local:3000/mehmet/deneme-projesi:v1
+
+1. Adım: Kubernetes (K3s) İçin Ayar (k8s-worker & master)
+K3s, Docker yerine containerd kullanır ve ayarları farklıdır. Worker düğümünün Gitea'dan imajı çekebilmesi (Pull) için ona da bu izni vermeliyiz.
+Hem k8s-master hem de k8s-worker makinelerinde şu dosyayı oluştur:
+Bash
+sudo nano /etc/rancher/k3s/registries.yaml
+(Klasör yoksa önce sudo mkdir -p /etc/rancher/k3s ile oluştur).
+İçine şunu yapıştır:
+YAML
+mirrors:
+  "192.168.2.81:3000":
+    endpoint:
+      - "<http://192.168.2.81:3000>"
+K3s servisini yeniden başlat:
+Master'da: sudo systemctl restart k3s
+Worker'da: sudo systemctl restart k3s-agent
+
+39612d5f69abd6ce28ca6fa5a8bb8b2455d5ff2e
+
+39612d5f69abd6ce28ca6fa5a8bb8b2455d5ff2e
