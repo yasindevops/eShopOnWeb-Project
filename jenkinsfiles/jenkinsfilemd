@@ -1,0 +1,53 @@
+pipeline {
+    agent any
+
+    environment {
+        REGISTRY = 'git.local:3000'
+        REPO_OWNER = 'mehmet'
+        WEB_IMAGE = "${REGISTRY}/${REPO_OWNER}/eshoponweb"
+        API_IMAGE = "${REGISTRY}/${REPO_OWNER}/eshoponweb-api"
+        // BUILD_NUMBER jenkins'in otomatik verdigi artan sayi, imaj takibi icin iyidir
+        TAG = "build-${env.BUILD_NUMBER}" 
+    }
+
+    stages {
+        stage('Docker Login') {
+            steps {
+                // Jenkins Credentials Manager'da 'gitea-creds' ID'si ile tanimli olmali
+                withCredentials([usernamePassword(credentialsId: 'gitea-creds', passwordVariable: 'GITEA_PWD', usernameVariable: 'GITEA_USER')]) {
+                    sh "echo ${GITEA_PWD} | docker login ${REGISTRY} -u ${GITEA_USER} --password-stdin"
+                }
+            }
+        }
+
+        stage('Build & Push Web Image') {
+            steps {
+                sh "docker build -f src/Web/Dockerfile -t ${WEB_IMAGE}:${TAG} -t ${WEB_IMAGE}:latest ."
+                sh "docker push ${WEB_IMAGE}:${TAG}"
+                sh "docker push ${WEB_IMAGE}:latest"
+            }
+        }
+
+        stage('Build & Push API Image') {
+            steps {
+                sh "docker build -f src/PublicApi/Dockerfile -t ${API_IMAGE}:${TAG} -t ${API_IMAGE}:latest ."
+                sh "docker push ${API_IMAGE}:${TAG}"
+                sh "docker push ${API_IMAGE}:latest"
+            }
+        }
+
+        stage('Deploy to K8s') {
+            steps {
+                // Deployment dosyasindaki imaj versiyonunu guncelleme
+                sh "kubectl set image deployment/web-deployment web=${WEB_IMAGE}:${TAG} --record"
+                sh "kubectl set image deployment/api-deployment api=${API_IMAGE}:${TAG} --record"
+            }
+        }
+    }
+
+    post {
+        always {
+            sh "docker logout ${REGISTRY}"
+        }
+    }
+}

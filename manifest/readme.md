@@ -80,3 +80,5 @@ ALLOWED_HOST_LIST = 192.168.2.79, 192.168.2.80 bu sekilde daha prof
 112356b51229c8c55b0875671b9dc5b8f3 gitea jenkinsde olusturdugum api token
 
 <http://mehmet:112356b51229c8c55b0875671b9dc5b8f3@jenkins.local:8080/job/eshop/build?token=token> bu sekilde webhook url olusturdum. giteada artik code push yapinca jenkins otomatik build baslatacak.
+
+jenkinsfile yazimi ile devam edilecek
