@@ -6,14 +6,15 @@ pipeline {
         REGISTRY    = "git.local:3000"
         IMG_NAME    = "mehmet/eshoponweb"      // Gitea kullanıcı/repo yapısı
         API_NAME    = "mehmet/eshoponweb-api"  // API projesi için
-        K8S_MASTER  = "192.168.2.80"           // K3s Master IP adresin
+        K8S_MASTER  = "k3s-master"           // K3s Master IP adresin
     }
 
-    stages {
+
+stages {
         stage('Docker Login') {
             steps {
-                // Jenkins'te 'gitea-creds' adında Username/Password credential'ı oluşturmuş olmalısın
-                withCredentials([usernamePassword(credentialsId: 'gitea-creds', usernameVariable: 'GITEA_USER', passwordVariable: 'GITEA_PASS')]) {
+                // Görseldeki ID 'gitea-auth' olduğu için burayı güncelledik
+                withCredentials([usernamePassword(credentialsId: 'gitea-auth', usernameVariable: 'GITEA_USER', passwordVariable: 'GITEA_PASS')]) {
                     sh "echo ${GITEA_PASS} | docker login ${REGISTRY} -u ${GITEA_USER} --password-stdin"
                 }
             }
